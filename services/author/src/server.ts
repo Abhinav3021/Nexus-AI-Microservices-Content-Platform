@@ -1,10 +1,34 @@
 import express from 'express';
 import dotenv from "dotenv";
 import {sql} from "./utils/db.js"
+import blogRoutes from "./routes/blog.js"
+import {v2 as cloudinary} from "cloudinary";
+import { connectRabbitMQ } from './utils/rabbitmq.js';
+import cors from 'cors'
 
 dotenv.config();
 
+const cloudName = process.env.Cloud_Name;
+const apiKey = process.env.Cloud_Api_key;
+const apiSecret = process.env.Cloud_Api_Secret;
+
+if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Missing Cloudinary environment variables. Please check your .env file.");
+}
+
+cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+});
+
 const app=express()
+
+app.use(express.json())
+app.use(cors());
+
+connectRabbitMQ()
+
 const port=process.env.PORT;
 
 async function initDB(){
@@ -48,6 +72,9 @@ async function initDB(){
         console.log("Error initDB",error);
     }
 }
+
+app.use("/api/v1",blogRoutes);
+
 initDB().then(()=>{
     app.listen(port,()=>{
     console.log(`Server is running on ${port}`)
